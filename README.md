@@ -1,2 +1,2 @@
-# flusk-demo-projects
+# flask-demo-projects
 Simple sample applications in flask
