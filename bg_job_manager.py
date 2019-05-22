@@ -15,48 +15,48 @@ LONG_TASK_DELAY_SECONDS = 60
 def short_job(job_id):
     print(f"Short task has started and it will run for {SHORT_TASK_DELAY_SECONDS} seconds")
     time.sleep(SHORT_TASK_DELAY_SECONDS)
-    executed_jobs['JobRunShort'] = {"code": 1000, "execution_id": job_id, "status": 'finished', 'result': 'success',
-                                    'message': 'JobRunShort is completed.'}
+    executed_jobs['JobRunShort'] = {"Code": 1000, "JobId": job_id, "Status": 'finished', 'Result': 'success',
+                                    'Message': 'JobRunShort is completed.'}
 
 
 def long_job(job_id):
     print(f"Long task has started and it will run for {LONG_TASK_DELAY_SECONDS} seconds")
     time.sleep(60)
-    executed_jobs['JobRunLong'] = {"code": 1000, "execution_id": job_id, "status": 'finished', 'result': 'failure',
-                                   'message': 'JobRunLong is completed.'}
+    executed_jobs['JobRunLong'] = {"Code": 1000, "JobId": job_id, "Status": 'finished', 'Result': 'failure',
+                                   'Message': 'JobRunLong is completed.'}
 
 
-def run_long_job():
-    already_started = executed_jobs.get('JobRunLong', None)
-    print(f'Has JobRunLong already started:  {already_started}')
-    if already_started is None or executed_jobs['JobRunLong']['status'] == 'finished':
+def run_long_job(job_name):
+    already_started = executed_jobs.get(job_name, None)
+    print(f'Has {job_name} already started:  {already_started}')
+    if already_started is None or executed_jobs['JobRunLong']['Status'] == 'finished':
         job_id = uuid.uuid4().hex
-        executed_jobs['JobRunLong'] = {"code": 1000, "execution_id": job_id, "status": 'in_progress', 'result': None,
-                                       'message': f'JobRunLong execution({job_id}) has started'}
-        print(f"Execution has started.ExecutionId :{executed_jobs['JobRunLong']['execution_id']}")
+        executed_jobs['JobRunLong'] = {"Code": 1000, "JobId": job_id, "Status": 'in_progress', 'Result': None,
+                                       'Message': f'JobRunLong execution({job_id}) has started'}
+        print(f"Execution has started.ExecutionId :{executed_jobs['JobRunLong']['JobId']}")
         thread = threading.Thread(target=long_job, args=[job_id])
         thread.start()
         return executed_jobs['JobRunLong']
     else:
-        executed_jobs['JobRunLong']['message'] = 'JobRunLong is in progress !'
-        executed_jobs['JobRunLong']['code'] = 2000
+        executed_jobs['JobRunLong']['Message'] = 'JobRunLong is in progress !'
+        executed_jobs['JobRunLong']['Code'] = 2000
         return executed_jobs['JobRunLong']
 
 
-def run_short_job():
-    already_started = executed_jobs.get('JobRunShort', None)
-    print(f'Has JobRunShort already started:  {already_started}')
-    if already_started is None or executed_jobs['JobRunShort']['status'] == 'finished':
+def run_short_job(job_name):
+    already_started = executed_jobs.get(job_name, None)
+    print(f'Has {job_name} already started:  {already_started}')
+    if already_started is None or executed_jobs['JobRunShort']['Status'] == 'finished':
         job_id = uuid.uuid4().hex
-        executed_jobs['JobRunShort'] = {"code": 1000, "execution_id": job_id, "status": 'in_progress', 'result': None,
-                                        'message': f'JobRunShort execution({job_id}) has started'}
-        print(f"Execution has started.ExecutionId :{executed_jobs['JobRunShort']['execution_id']}")
+        executed_jobs['JobRunShort'] = {"Code": 1000, "JobId": job_id, "Status": 'in_progress', 'Result': None,
+                                        'Message': f'JobRunShort execution({job_id}) has started'}
+        print(f"Execution has started.ExecutionId :{executed_jobs['JobRunShort']['JobId']}")
         thread = threading.Thread(target=short_job, args=[job_id])
         thread.start()
         return executed_jobs['JobRunShort']
     else:
-        executed_jobs['JobRunShort']['message'] = 'JobRunShort is in progress!'
-        executed_jobs['JobRunShort']['code'] = 2000
+        executed_jobs['JobRunShort']['Message'] = 'JobRunShort is in progress!'
+        executed_jobs['JobRunShort']['Code'] = 2000
 
         return executed_jobs['JobRunShort']
 
@@ -72,18 +72,18 @@ def home():
     return jsonify({})
 
 
-@app.route("/jobs/<execution_id>", methods=['GET'])
-def job_status(execution_id):
+@app.route("/jobs/<job_id>", methods=['GET'])
+def job_status(job_id):
     if request.method == 'GET':
-        print(f'Returning execution status for  {execution_id}')
+        print(f'Returning execution status for  {job_id}')
         print('Printing all executed jobs..')
         pp(executed_jobs)
-        job_executions = [(key, value) for key, value in executed_jobs.items() if value['execution_id'] == execution_id]
+        job_executions = [(key, value) for key, value in executed_jobs.items() if value['JobId'] == job_id]
         job_execution = job_executions[0] if len(job_executions) > 0 else None
 
         if job_execution is None:
-            result = {'code': 3000, "execution_id": execution_id, "status": None, "result": None,
-                      "message": "Given Job could not be found!"}
+            result = {'Code': 3000, "JobId": job_id, "Status": None, "Result": None,
+                      "Message": "Given Job execution could not be found!"}
             return jsonify(result)
         job_type = job_execution[0]
         job_execution_status = job_execution[1]
@@ -111,11 +111,16 @@ def jobs():
         return jsonify(results)
 
 
+def handle_undefined_job_request(job_name):
+    return {'Code': 3000, "JobId": None, "Status": None, "Result": None,
+            "Message": f'Given job definition({job_name}) could not be found.'}
+
+
 @app.route("/jobs/<job>", methods=['POST'])
 def start_job(job):
     if request.method == 'POST':
-        func = switcher.get(job, lambda: f"Given Job ({job}) could not be found")
-        result = func()
+        func = switcher.get(job, lambda job_name: handle_undefined_job_request(job_name))
+        result = func(job)
         return json.dumps(result)
 
 
